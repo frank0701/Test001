@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mapper	namespace="com.cy.SysLogDaoTest">
+<delete id="deleteObjects">
+delete from sys_logs where id in
+<foreach collections="ids"
+			open="("
+			close=")"
+			separator=","
+			item="id">
+	#{id}
+</foreach>
+
+</delete>
+</mapper>

@@ -1,0 +1,226 @@
+<div class="row">
+	<div class="col-xs-12">
+		<div class="box">
+			<div class="box-header">
+				<h3 class="box-title">日志管理</h3>
+
+				<div class="box-tools">
+					<div class="input-group input-group-sm" style="width: 350px;">
+						<input type="text" name="table_search" id="searchNameId"
+							class="form-control pull-right" placeholder="用户名">
+
+						<div class="input-group-btn">
+							<button type="button" class="btn btn-default btn-search">
+                                <i class="fa fa-search"></i>
+							</button>
+							<button type="button" class="btn btn-default btn-delete">删除</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- /.box-header -->
+			<div class="box-body table-responsive no-padding">
+				<table class="table table-hover">
+					<thead>
+						<tr>
+						    <th><input type="checkbox" id="checkAll">全选</th>
+							<th>用户名</th>
+							<th>操作</th>
+							<th>请求方法</th>
+							<th>请求参数</th>
+							<th>IP地址</th>
+							<th>执行时间</th>
+						</tr>
+					</thead>
+					<tbody id="tbodyId">
+					    <tr>
+					       <td colspan="7">数据加载中...</td>
+					    </tr>
+					</tbody>
+				</table>
+			</div>
+			<div id="pageId" class="box-footer clearfix">
+			      
+			</div>
+			<!-- /.box-body -->
+		</div>
+		<!-- /.box -->
+	</div>
+</div>
+<script type="text/javascript">
+	$(function(){
+		//异步加载分页页面
+		//当load函数异步请求结束执行doGetObjects
+		$("#pageId").load("doPageUI",doGetObjects);
+		//搜索按钮事件注册
+		$(".input-group-btn").on("click","btn-search",doQueryObjects)
+	   .on("click",".btn-delete",doDeleteObjects)
+	   //thread中checkbox对象事件注册
+		$("#checkAll").on("change",doChangeTBodyCheckboxState)
+		$("#tbodyId").on("change",doChangeTHeadCheckboxState)
+	})
+	function doChangeTHeadCheckboxState(){
+		var flag=true;
+		$("#tbodyId input[type='checkbox']")
+		.each(function(){
+			flag=flag&&$(this).prop("checked");
+		})
+		$("#checkAll").prop("checked",flag);
+	}
+	function doChangeTBodyCheckboxState(){
+		console.log("fuckyou")
+		//1.获取全选(checkAll)对象的状态值
+		let flag=$(this).prop("checked")
+		//2.修改tbody中checkbox对象的状态值
+		$("#tbodyId input[type='checkbox']")
+		.each(function(){
+			$(this).prop("checked",flag)
+		})
+	}
+	//执行删除业务
+	function doDeleteObjects(){
+		//debugger
+		//1.获取选中记录的id值并校验
+		let idArray=doGetCheckedIds();
+		if(idArray.length==0){
+			alert("请先选中");
+			return;
+		}
+		console.log(idArray);
+		//2.提示是否删除
+		if(!confirm("确认删除吗"))return;
+		//3.定义删除的url
+		var url = "log/doDeleteObjects";
+		//4.定义删除时要传递的参数
+		var params={"ids":idArray.toString()};
+		//5.执行异步删除业务
+		$.post(url,params,function(result){
+			if(result.state==1){
+				alert(result.message);
+				//当最后一页被全部删除后需要将当前页面跳转至前一页
+				doChangePageCurrent();
+				doGetObjects();
+			}else{
+				alert(result.message);
+			}
+		})
+	}
+	
+	//修改当前页码值
+	function doChangePageCurrent(){
+		//1.获取当前页码值,总页数
+		var pageCurrent=$("#pageId").data("pageCurrent");
+		var pageCount=$("#pageId").data("pageCount");
+		//console.log("pageCurrent"+pageCurrent)
+		//console.log("pageCount"+pageCount)
+		//2.获取checkAll状态值
+		let flag=$("#checkAll").prop("checked");
+		//3.修改当前页码值
+		if(pageCurrent!=1&&flag&&pageCurrent==pageCount){
+			pageCurrent=pageCount-1;
+			$("#pageId").data("pageCurrent",pageCurrent)
+		}
+	}
+	
+	function doQueryObjects(){
+		//debugger
+		//console.log("fuck you")
+		//1.初始化当前页码值为1
+		$("#pageId").data("pageCurrent",1);
+		//2.基于用户名查询日志信息
+		const url ="log/doFindPageObject";
+		//? 请问data函数的含义是什么？(从指定元素上获取绑定的数据)
+	    //此数据会在何时进行绑定？(setPagination,doQueryObjects)
+	    var pageCurrent=$("#pageId").data("pageCurrent");
+	    //为什么要执行如下语句的判定，然后初始化pageCurrent的值为1
+	    //pageCurrent参数在没有赋值的情况下，默认初始值应该为1.
+	    if(!pageCurrent) pageCurrent=1;
+	    var params={"pageCurrent":pageCurrent};
+	    //为什么此位置要获取查询参数的值?
+	    //一种冗余的应用方法，目的时让此函数在查询时可以重用。
+	    var username=$("#searchNameId").val();
+	    //如下语句的含义是什么？动态在js对象中添加key/value,
+	    if(username) params.username=username;//查询时需要
+	    //2.发起异步请求
+	    //请问如下ajax请求的回调函数参数名可以是任意吗？可以,必须符合标识符的规范
+        $.getJSON(url,params,function(result){
+		//请问result是一个字符串还是json格式的js对象？对象
+    	    doHandleResponseResult(result);
+		});
+	}
+	
+		//异步查询用户行为日志
+	function doGetObjects(){
+		$("#checkAll").prop("checked",false);
+		//debugger//断点调试(debug模式)
+		//1.定义请求的url
+		const url ="log/doFindPageObject";
+		//2.定义请求的参数
+		var pageCurrent=$("#pageId").data("pageCurrent");
+		if(!pageCurrent) pageCurrent=1;
+		var params={"pageCurrent":pageCurrent}//"pageCurrent=1"
+		var username=$("#searchNameId").val();
+		//点击查询按钮时username可能会输入一个值
+		if(username)params.username=username;
+		//3.发送异步请求(借助jquery中的ajax函数)
+		$.getJSON(url,params,function(result){
+			doHandleResponseResult(result);
+		});	
+	}
+	//处理查询结果
+	function doHandleResponseResult(result){
+		//debugger
+		if(result.state==1){
+			//1.将日志结束添加到tbody中
+			doSetTableBodyRows(result.data.records);
+			//2.将日志分页信息添加到pageId位置
+			doSetPagination(result.data);
+		}else{
+			$("#tbodyId").empty();
+			doInitPagination();
+			alert(result.message);
+		}
+	}
+	 function doGetCheckedIds(){
+		   //定义一个数组,用于存储选中的checkbox的id值
+		   var array=[];//new Array();
+		   //获取tbody中所有类型为checkbox的input元素
+		   $("#tbodyId input[type=checkbox]").
+		   //迭代这些元素，每发现一个元素都会执行如下回调函数
+		   each(function(){
+			   //假如此元素的checked属性的值为true
+			   if($(this).prop("checked")){
+				   //调用数组对象的push方法将选中对象的值存储到数组
+				   array.push($(this).val());
+			   }
+		   });
+		   return array;
+	 } 
+	function doSetTableBodyRows(records){
+		//获取tbody对象,并清空数据
+		var tBody = $("#tbodyId");
+		tBody.empty();
+		//2.迭代日志记录records,并将其追加到tbody中
+		for(let i=0;i<records.length;i++){
+			//1.创建tr对象(一行)
+			let tr=$("<tr></tr>");
+			//2.创建多个td(多列)
+			let tds=doCreateTds(records[i]);
+			//3.将td追加到tr中
+			tr.append(tds);
+			//4.tr追加到tbody中
+			tBody.append(tr);
+		}
+	}
+	 function doCreateTds(data){
+		   var tds="<td><input type='checkbox' class='cBox' name='cItem' value='"+data.id+"'></td>"+
+			   	 "<td>"+data.username+"</td>"+
+			     "<td>"+data.operation+"</td>"+
+			     "<td>"+data.method+"</td>"+
+			     "<td>"+data.params+"</td>"+
+			     "<td>"+data.ip+"</td>"+
+			     "<td>"+data.time+"</td>";	   
+		return tds;
+	   }
+	
+</script>
